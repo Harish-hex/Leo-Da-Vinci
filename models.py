@@ -45,6 +45,7 @@ class Metadata(BaseModel):
     total_duration_sec: float = 0.0
     total_duration_human: str = "0s"
     speakers_detected: List[str] = Field(default_factory=list)
+    speaker_contributions: dict = Field(default_factory=dict)
     processing_time_sec: float = 0.0
     segment_count: int = 0
     warnings: List[str] = Field(default_factory=list)
@@ -70,6 +71,7 @@ class FailsafeResponse(BaseModel):
     )
     issues: List[str] = Field(default_factory=list)
     focus_topic_found: Optional[bool] = None
+    overall_tone: Optional[str] = None
     metadata: Metadata = Field(default_factory=Metadata)
 
 
@@ -92,6 +94,7 @@ class AnalyzeResponse(BaseModel):
     risks_and_open_questions: List[RiskOrQuestion] = Field(default_factory=list)
     action_items: List[ActionItem] = Field(default_factory=list)
     focus_topic_found: Optional[bool] = None
+    overall_tone: Optional[str] = None
     metadata: Metadata = Field(default_factory=Metadata)
 
 

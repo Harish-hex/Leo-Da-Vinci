@@ -80,6 +80,8 @@ EXTRACTION GUIDELINES:
   discussions that did not reach a conclusion.
 - **Speakers**: Identify them from dialogue cues (e.g., "said X", \
   "Speaker A:"). If no speakers are identifiable, return an empty list.
+- **Overall Tone**: Provide a 1-2 sentence description of the meeting's \
+  overall tone and atmosphere (e.g. constructive, tense, collaborative, formal).
 - **Summary**: Cover ALL major topics discussed, not just the first few.
 
 Return JSON with this exact structure:
@@ -87,6 +89,7 @@ Return JSON with this exact structure:
   "confidence_score": <0-100 integer>,
   "confidence_label": "<one-line explanation of confidence level>",
   "meeting_summary": ["<bullet point with [cite: N]>", ...],
+  "overall_tone": "<1-2 sentence description of the meeting atmosphere>",
   "speakers_detected": ["<name or Speaker A>", ...],
   "key_decisions": [
     {"id": 1, "title": "<short title>", "description": "<detail with [cite: N]>"}
@@ -314,6 +317,27 @@ def analyze_meeting(meeting: Meeting, focus_topic: Optional[str] = None) -> Unio
             "using provided attendee list instead."
         )
 
+    # Calculate exact speaker contributions based on segment timestamps
+    contributions = {}
+    for seg in meeting.segments:
+        # Attempt to figure out who spoke in this segment (e.g. "Speaker 1: Hello")
+        # In our generic loader, we don't strictly parse out speaker names from text at the ingest level 
+        # unless it uses a standard prefix. Let's do a best effort parsing of "Name:" at start of line
+        text_prefix = seg.text.split(":")[0].strip() if ":" in seg.text else "Unknown Speaker"
+        
+        duration = seg.end_time - seg.start_time
+        
+        # Determine if the prefix looks like a name/speaker label (less than 30 chars, no weird punctuation)
+        speaker_label = text_prefix
+        if len(speaker_label) > 30 or " " in speaker_label and len(speaker_label.split(" ")) > 3:
+            speaker_label = "Unknown Speaker"
+            
+        contributions[speaker_label] = contributions.get(speaker_label, 0.0) + duration
+        
+    # Round contributions to 1 decimal place
+    for spkr in contributions:
+        contributions[spkr] = round(contributions[spkr], 1)
+
     # Parse decisions
     decisions: List[Decision] = []
     for d in extraction.get("key_decisions", []):
@@ -357,11 +381,13 @@ def analyze_meeting(meeting: Meeting, focus_topic: Optional[str] = None) -> Unio
             risks_and_open_questions=[],
             action_items=[],
             focus_topic_found=False,
+            overall_tone=extraction.get("overall_tone"),
             metadata=Metadata(
                 model=config.MODEL_NAME,
                 total_duration_sec=meeting.total_duration_sec,
                 total_duration_human=meeting.total_duration_human,
                 speakers_detected=speakers,
+                speaker_contributions=contributions,
                 processing_time_sec=elapsed,
                 segment_count=len(meeting.segments),
                 warnings=[f"Focus topic '{focus_topic}' was not found in the transcript."],
@@ -376,11 +402,13 @@ def analyze_meeting(meeting: Meeting, focus_topic: Optional[str] = None) -> Unio
         risks_and_open_questions=risks,
         action_items=actions,
         focus_topic_found=True if focus_topic else None,
+        overall_tone=extraction.get("overall_tone"),
         metadata=Metadata(
             model=config.MODEL_NAME,
             total_duration_sec=meeting.total_duration_sec,
             total_duration_human=meeting.total_duration_human,
             speakers_detected=speakers,
+            speaker_contributions=contributions,
             processing_time_sec=elapsed,
             segment_count=len(meeting.segments),
             warnings=warnings,

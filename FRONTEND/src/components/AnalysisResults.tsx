@@ -17,8 +17,10 @@ import {
   Download,
   Loader2,
   SearchX,
+  Users, // Added Users icon for participants
 } from "lucide-react";
 import type { AnalysisResult, FailsafeResponse, AnalyzeResponse } from "@/types/analysis";
+import { PieChart, Pie, Cell, Tooltip as RechartsTooltip, ResponsiveContainer } from "recharts"; // Added Recharts imports
 
 interface AnalysisResultsProps {
   data: AnalysisResult;
@@ -45,10 +47,10 @@ const GlassSection = ({
   const isDark = index % 2 === 0;
   return (
     <motion.div
-      className={`rounded-2xl p-6 transition-colors duration-500 ${isDark
+      className={`rounded - 2xl p - 6 transition - colors duration - 500 ${isDark
         ? "bg-black text-white [&_.muted-text]:text-white/50"
         : "bg-white text-black border border-black/10 shadow-sm [&_.muted-text]:text-black/50"
-        } ${className}`}
+        } ${className} `}
       custom={index}
       initial="hidden"
       animate="visible"
@@ -69,8 +71,8 @@ const SectionHeader = ({
   light?: boolean;
 }) => (
   <div className="flex items-center gap-2.5 mb-4">
-    <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${light ? "bg-black/10" : "bg-white/10"}`}>
-      <Icon className={`w-4 h-4 ${light ? "text-black" : "text-white"}`} />
+    <div className={`w - 8 h - 8 rounded - lg flex items - center justify - center ${light ? "bg-black/10" : "bg-white/10"} `}>
+      <Icon className={`w - 4 h - 4 ${light ? "text-black" : "text-white"} `} />
     </div>
     <h3 className="font-heading font-semibold text-lg">{title}</h3>
   </div>
@@ -116,7 +118,7 @@ const AnalysisResults = ({ data }: AnalysisResultsProps) => {
       }
 
       const meetingId = data.meeting_id || "report";
-      pdf.save(`synthetix-${meetingId}.pdf`);
+      pdf.save(`synthetix - ${meetingId}.pdf`);
     } finally {
       setIsDownloading(false);
     }
@@ -137,6 +139,13 @@ const AnalysisResults = ({ data }: AnalysisResultsProps) => {
     setLocalActionItems((data as AnalyzeResponse).action_items || []);
   }, [data]);
 
+  // Prepare data for Recharts PieChart
+  const pieData = (data as AnalyzeResponse).metadata?.speaker_contributions
+    ? Object.entries((data as AnalyzeResponse).metadata.speaker_contributions).map(([name, value]) => ({ name, value }))
+    : [];
+
+  const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#AF19FF', '#FF19AF']; // Example colors
+
   // ── Failsafe Response ──────────────────────────────────────
   if (!data.success) {
     const failsafe = data as FailsafeResponse;
@@ -153,27 +162,11 @@ const AnalysisResults = ({ data }: AnalysisResultsProps) => {
           </button>
         </div>
         <div ref={reportRef} className="space-y-5">
-          <GlassSection index={0} className="flex flex-col">
+          <GlassSection index={0} className="flex flex-col items-center justify-center p-6 sm:p-8 space-y-4">
             <ConfidenceGauge
               value={data.confidence_score}
               label={data.confidence_label}
             />
-            {data.metadata && (
-              <div className="mt-4 pt-4 border-t border-white/10 grid grid-cols-2 gap-4 items-end">
-                <div>
-                  <p className="text-[11px] font-medium text-white/50 uppercase tracking-wider mb-1">Meeting Duration</p>
-                  <p className="text-xl font-heading font-semibold text-white">
-                    {data.metadata.total_duration_human || "Unknown"}
-                  </p>
-                </div>
-                <div>
-                  <p className="text-[11px] font-medium text-white/50 uppercase tracking-wider mb-1">Participants</p>
-                  <p className="text-xl font-heading font-semibold text-white">
-                    {data.metadata.speakers_detected?.length || 0}
-                  </p>
-                </div>
-              </div>
-            )}
           </GlassSection>
 
           <GlassSection index={1} className="border-l-2 border-l-amber-500/50">
@@ -264,31 +257,74 @@ const AnalysisResults = ({ data }: AnalysisResultsProps) => {
         </motion.div>
       )}
       <div ref={reportRef} className="grid grid-cols-1 md:grid-cols-2 gap-5 auto-rows-min">
-        {/* Row 1: Confidence + Summary */}
-        <GlassSection index={0} className="flex flex-col">
+        {/* Row 1: Confidence + Metadata */}
+        <GlassSection index={0} className="flex flex-col items-center justify-center p-6 sm:p-8 space-y-4">
           <ConfidenceGauge
             value={data.confidence_score}
             label={data.confidence_label}
           />
           {data.metadata && (
-            <div className="mt-4 pt-4 border-t border-white/10 grid grid-cols-2 gap-4 items-end">
-              <div>
-                <p className="text-[11px] font-medium text-white/50 uppercase tracking-wider mb-1">Meeting Duration</p>
-                <p className="text-xl font-heading font-semibold text-white">
+            <div className="flex flex-col items-center justify-center space-y-3 mt-4 text-center">
+              <div className="text-sm font-medium text-white/70">
+                <span className="block text-xl font-semibold text-white mb-1">
                   {data.metadata.total_duration_human || "Unknown"}
-                </p>
+                </span>
+                Meeting Duration
               </div>
-              <div>
-                <p className="text-[11px] font-medium text-white/50 uppercase tracking-wider mb-1">Participants</p>
-                <p className="text-xl font-heading font-semibold text-white">
+              <div className="text-sm font-medium text-white/70 flex flex-col items-center">
+                <span className="flex items-center text-xl font-semibold text-white mb-1">
+                  <Users className="w-5 h-5 mr-2 text-primary" />
                   {data.metadata.speakers_detected?.length || 0}
-                </p>
+                </span>
+                Participants
               </div>
             </div>
           )}
         </GlassSection>
 
-        <motion.div custom={1} initial="hidden" animate="visible" variants={cardVariants}>
+        {/* Speaker Contributions & Tone Analysis */}
+        {pieData.length > 0 && (
+          <GlassSection index={0} className="md:col-span-1 p-6 sm:p-8 flex flex-col h-full">
+            <h3 className="text-xl font-semibold text-white mb-4 flex items-center tracking-tight">
+              Speaker Contributions
+            </h3>
+            <div className="w-full h-[200px] mb-4">
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <Pie
+                    data={pieData}
+                    cx="50%"
+                    cy="50%"
+                    innerRadius={60}
+                    outerRadius={80}
+                    paddingAngle={5}
+                    dataKey="value"
+                  >
+                    {pieData.map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                    ))}
+                  </Pie>
+                  <RechartsTooltip
+                    formatter={(value: number, name: string) => [`${value} s`, name]}
+                    contentStyle={{ backgroundColor: 'rgba(17, 24, 39, 0.8)', borderColor: 'rgba(255,255,255,0.1)', borderRadius: '8px', color: 'white' }}
+                    itemStyle={{ color: 'white' }}
+                  />
+                </PieChart>
+              </ResponsiveContainer>
+            </div>
+
+            {(data as AnalyzeResponse).overall_tone && (
+              <div className="mt-6 border-t border-white/10 pt-4">
+                <h4 className="text-sm font-semibold text-white mb-2 uppercase tracking-wider">Tone Analysis</h4>
+                <p className="text-sm text-white/80 leading-relaxed font-light">
+                  {(data as AnalyzeResponse).overall_tone}
+                </p>
+              </div>
+            )}
+          </GlassSection>
+        )}
+
+        <motion.div custom={1} initial="hidden" animate="visible" variants={cardVariants} className={pieData.length > 0 ? "md:col-span-2" : "md:col-span-1"}>
           <RegenerateCard
             meetingId={meetingId}
             section="summary"

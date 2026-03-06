@@ -27,6 +27,7 @@ export interface Metadata {
     total_duration_sec: number;
     total_duration_human: string;
     speakers_detected: string[];
+    speaker_contributions: Record<string, number>;
     processing_time_sec: number;
     segment_count: number;
     warnings: string[];
@@ -42,6 +43,7 @@ export interface AnalyzeResponse {
     risks_and_open_questions: RiskOrQuestion[];
     action_items: ActionItem[];
     focus_topic_found?: boolean | null;
+    overall_tone?: string | null;
     metadata: Metadata;
 }
 
@@ -53,6 +55,7 @@ export interface FailsafeResponse {
     message: string;
     issues: string[];
     focus_topic_found?: boolean | null;
+    overall_tone?: string | null;
     metadata: Metadata;
 }
 
